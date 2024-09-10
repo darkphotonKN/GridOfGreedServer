@@ -10,18 +10,31 @@ import (
 )
 
 type GameServer struct {
-	addr    string
-	players map[*websocket.Conn]string
-	ws      *websocket.Conn
+	addr      string
+	players   map[*websocket.Conn]string
+	ws        *websocket.Conn
+	gridState Grid
 }
+
+type Grid []bool
 
 type WebsocketServer interface {
 	Connect() error
 	HandleConnections(w http.ResponseWriter, r *http.Request)
+	InitGrid(grid Grid)
 }
 
 func NewGameServer(addr string) WebsocketServer {
-	return &GameServer{addr: addr}
+
+	defaultGrid := Grid{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
+	gs := GameServer{addr: addr}
+	gs.InitGrid(defaultGrid)
+
+	return &gs
+}
+
+func (g *GameServer) InitGrid(grid Grid) {
+	g.gridState = grid
 }
 
 func (g *GameServer) Connect() error {
@@ -76,14 +89,13 @@ func (g *GameServer) HandlePlayer() {
 			log.Println("Error reading message:", err)
 			break
 		}
+
 		fmt.Printf("Received message: %s\n", msg)
 
 		if string(msg) == "startgame" {
 
 			// provide board state to app
-			boardState := []bool{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false}
-
-			boardStateJson, err := json.Marshal(boardState)
+			boardStateJson, err := json.Marshal(g.gridState)
 
 			if err != nil {
 				fmt.Println("Error when connverting to json: ", err)
