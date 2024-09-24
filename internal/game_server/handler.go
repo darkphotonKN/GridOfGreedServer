@@ -1,13 +1,14 @@
 package gameserver
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 )
+
+var msgChan = make(chan []byte)
 
 type GameServer struct {
 	addr      string
@@ -22,10 +23,10 @@ type WebsocketServer interface {
 	Connect() error
 	HandleConnections(w http.ResponseWriter, r *http.Request)
 	InitGrid(grid Grid)
+	MessageHub()
 }
 
 func NewGameServer(addr string) WebsocketServer {
-
 	defaultGrid := Grid{false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false}
 	gs := GameServer{addr: addr}
 	gs.InitGrid(defaultGrid)
@@ -43,6 +44,7 @@ func (g *GameServer) Connect() error {
 	log.Printf("Server started on %s.", g.addr)
 
 	err := http.ListenAndServe(g.addr, nil)
+
 	if err != nil {
 		return err
 	}
@@ -92,27 +94,7 @@ func (g *GameServer) HandlePlayer() {
 
 		fmt.Printf("Received message: %s\n", msg)
 
-		if string(msg) == "startgame" {
-
-			// provide board state to app
-			boardStateJson, err := json.Marshal(g.gridState)
-
-			if err != nil {
-				fmt.Println("Error when connverting to json: ", err)
-			}
-
-			err = g.ws.WriteMessage(websocket.TextMessage, boardStateJson)
-			if err != nil {
-				log.Println("Error when providing board to player:", err)
-				break
-			}
-		}
-
-		// Echo message back to the client
-		err = g.ws.WriteMessage(websocket.TextMessage, msg)
-		if err != nil {
-			log.Println("Error writing message:", err)
-			break
-		}
+		// pass message along to global channel to be handled in MessageHub
+		msgChan <- msg
 	}
 }
