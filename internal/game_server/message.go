@@ -18,16 +18,26 @@ func NewMessageService(ws *websocket.Conn) *MessageService {
 }
 
 type GameMessage struct {
-	Type  string `json:"type"`
-	Value any    `json:"value"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
 }
 
 /**
 * Decodes message received as bytes from the websocket connection.
 **/
 func (ms *MessageService) DecodeMessage(msg []byte) (GameMessage, error) {
-	fmt.Println("msg:", msg)
-	return GameMessage{}, nil
+	fmt.Println("decoding msg...", msg)
+
+	var jsonMsg GameMessage
+
+	err := json.Unmarshal(msg, &jsonMsg)
+	if err != nil {
+		return GameMessage{}, err
+	}
+
+	fmt.Printf("Decoded msg: %+v", jsonMsg)
+
+	return jsonMsg, nil
 }
 
 /**
@@ -46,4 +56,16 @@ func (ms *MessageService) WriteErrorMessage(err error) error {
 	err = ms.ws.WriteMessage(websocket.TextMessage, errMsg)
 
 	return nil
+}
+
+/**
+* Writes message to user and handles any errors.
+**/
+
+func (ms *MessageService) WriteMessage(msg []byte) {
+	err := ms.ws.WriteMessage(websocket.TextMessage, msg)
+
+	if err != nil {
+		ms.WriteErrorMessage(err)
+	}
 }
