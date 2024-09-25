@@ -5,9 +5,11 @@ package gameserver
 **/
 func (g *GameServer) MessageHub() {
 
-	select {
-	case msg := <-msgChan:
-		g.handleGameMove(msg)
+	for {
+		select {
+		case msg := <-msgChan:
+			g.handleGameMove(msg)
+		}
 
 	}
 }

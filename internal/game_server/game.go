@@ -1,7 +1,6 @@
 package gameserver
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/darkphotonKN/GridOfGreedWsServer/internal/types"
 )
@@ -13,61 +12,44 @@ import (
 /**
 * Handles all game move logic.
 **/
-func (g *GameServer) handleGameMove(msg []byte) error {
+func (g *GameServer) handleGameMove(msg []byte) {
 	// init message service for encoding / decoding / writing errors
 	msgService := NewMessageService(g.ws)
 
-	// decode message
 	decodedMsg, err := msgService.DecodeMessage(msg)
-
-	// deduce game move by casting type from message
-	move := types.GameMove(decodedMsg.Type)
-
-	fmt.Println("Game move:", move)
+	fmt.Printf("Decoded message: %v\n", decodedMsg)
 
 	if err != nil {
 		msgService.WriteErrorMessage(err)
 	}
 
-	fmt.Printf("Decoded message: %v\n", decodedMsg)
+	// deduce game move by casting type from message
+	move := types.GameMove(decodedMsg.Type)
+
+	fmt.Println("Game Move after cast:", move)
 
 	switch move {
 	case types.ActivateGrid:
-
-		activateIndex, ok := decodedMsg.Value.(int)
-
-		fmt.Println("Activating Grid at index:", activateIndex)
+		// NOTE: from json decoded numbers are float64
+		activateIndex, ok := decodedMsg.Value.(float64)
 
 		if !ok {
-			return fmt.Errorf("Incorrect value sent when attempting to make move \"Activate_Grid\" ")
+			msgService.WriteErrorMessage(fmt.Errorf("Incorrect value sent when attempting to make move \"Activate_Grid\" "))
+			break
 		}
 
-		g.gridState[activateIndex] = !g.gridState[activateIndex]
+		g.gridState[int(activateIndex)] = !g.gridState[int(activateIndex)]
 
 		fmt.Println("Grid state after activate:", g.gridState)
 
-		boardStateJson, err := json.Marshal(g.gridState)
+		msgService.WriteMessage(g.gridState)
 
-		if err != nil {
-			fmt.Println("Error when connverting to json: ", err)
-			return err
-		}
-
-		msgService.WriteMessage(boardStateJson)
+		break
 
 	case types.StartGame:
-		boardStateJson, err := json.Marshal(g.gridState)
+		msgService.WriteMessage(g.gridState)
+		break
 
-		if err != nil {
-			fmt.Println("Error when connverting to json: ", err)
-			return err
-		}
-
-		msgService.WriteMessage(boardStateJson)
-
-	default:
-		return nil
 	}
 
-	return nil
 }
